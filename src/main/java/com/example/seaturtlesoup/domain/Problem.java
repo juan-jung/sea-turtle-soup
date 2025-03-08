@@ -1,12 +1,12 @@
 package com.example.seaturtlesoup.domain;
 
+import com.example.seaturtlesoup.domain.type.DifficultyType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
 import javax.persistence.*;
 import java.util.Objects;
-
 @Getter
 @ToString
 @Entity
@@ -19,18 +19,18 @@ public class Problem {
     @Setter @Column(nullable = false) private String title;
     @Setter @Column(nullable = false) private String content;
     @Setter @Column(nullable = false, columnDefinition = "TEXT") private String answer;
-    @Setter @Column(nullable = false, columnDefinition = "TEXT") private String difficulty;
+    @Setter @Column(nullable = false, columnDefinition = "TEXT") @Enumerated(EnumType.STRING) private DifficultyType difficulty;
 
     protected Problem() {}
 
-    private Problem(String title, String content, String answer, String difficulty) {
+    private Problem(String title, String content, String answer, DifficultyType difficulty) {
         this.title = title;
         this.content = content;
         this.answer = answer;
         this.difficulty = difficulty;
     }
 
-    public static Problem of(String title, String content, String answer, String difficulty) {
+    public static Problem of(String title, String content, String answer, DifficultyType difficulty) {
         return new Problem(title,content,answer,difficulty);
     }
 
