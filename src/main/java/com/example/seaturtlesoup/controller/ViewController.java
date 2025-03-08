@@ -8,16 +8,16 @@ public class ViewController {
 
     @GetMapping("/")
     public String root() {
-        return "forward:/problems";
+        return "redirect:/problems";
     }
 
     @GetMapping("/problems")
     public String problems() {
-        return "/problems";
+        return "forward:/problems.html";
     }
 
-    @GetMapping("/problem")
+    @GetMapping("/problem/{problemId}")
     public String problem() {
-        return "/problem";
+        return "forward:/problem.html";
     }
 }
