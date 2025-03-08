@@ -2,6 +2,8 @@ package com.example.seaturtlesoup.service;
 
 import com.example.seaturtlesoup.domain.Prompt;
 import com.example.seaturtlesoup.domain.type.PromptType;
+import com.example.seaturtlesoup.dto.AIQueryDto;
+import com.example.seaturtlesoup.dto.AIQueryResultDto;
 import com.example.seaturtlesoup.dto.NewProblemDto;
 import com.example.seaturtlesoup.dto.ProblemDto;
 import com.example.seaturtlesoup.repository.PromptRepository;
@@ -16,13 +18,13 @@ public class AIService {
 
     private final PromptRepository promptRepository;
 
-    public String query(ProblemDto dto) {
+    public AIQueryResultDto query(AIQueryDto dto) {
         Prompt prompt = promptRepository.findByType(PromptType.QUESTION_RESPONSE)
                 .orElseThrow(() -> new EntityNotFoundException());
 
         //TODO : AI연동
 
-        return "AI 답변";
+        return new AIQueryResultDto(false,"AI 답변", dto.answer());
     }
 
     public NewProblemDto make() {

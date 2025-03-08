@@ -1,11 +1,13 @@
 package com.example.seaturtlesoup.controller;
 
+import com.example.seaturtlesoup.dto.AIQueryResultDto;
 import com.example.seaturtlesoup.dto.ProblemDto;
 import com.example.seaturtlesoup.dto.req.QueryRequestDto;
 import com.example.seaturtlesoup.dto.res.QueryResponseDto;
 import com.example.seaturtlesoup.dto.res.ProblemResponseDto;
 import com.example.seaturtlesoup.service.ProblemService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RequiredArgsConstructor
 @RequestMapping("/api")
 @RestController
@@ -34,7 +37,12 @@ public class ProblemRestController {
 
     @PostMapping("/problems/{problemId}/ask")
     public ResponseEntity<QueryResponseDto> ask(@PathVariable Long problemId, @RequestBody QueryRequestDto dto) {
-        QueryResponseDto queryResult = new QueryResponseDto(problemService.ask(problemId, dto.question()));
+        log.info("1 : {} ",dto);
+        AIQueryResultDto aiQueryResultDto = problemService.ask(problemId, dto.question());
+        QueryResponseDto queryResult = new QueryResponseDto(
+                aiQueryResultDto.isAnswer(),
+                aiQueryResultDto.queryResult(),
+                aiQueryResultDto.isAnswer()?aiQueryResultDto.answer() : null);
         return ResponseEntity.ok(queryResult);
     }
 

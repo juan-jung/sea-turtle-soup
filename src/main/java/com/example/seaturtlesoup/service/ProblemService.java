@@ -2,6 +2,8 @@ package com.example.seaturtlesoup.service;
 
 import com.example.seaturtlesoup.domain.Problem;
 import com.example.seaturtlesoup.domain.type.DifficultyType;
+import com.example.seaturtlesoup.dto.AIQueryDto;
+import com.example.seaturtlesoup.dto.AIQueryResultDto;
 import com.example.seaturtlesoup.dto.NewProblemDto;
 import com.example.seaturtlesoup.dto.ProblemDto;
 import com.example.seaturtlesoup.repository.ProblemRepository;
@@ -33,11 +35,14 @@ public class ProblemService {
     }
 
     @Transactional(readOnly = true)
-    public String ask(Long problemId, String question) {
-        ProblemDto dto = problemRepository.findById(problemId).map(ProblemDto::from)
+    public AIQueryResultDto ask(Long problemId, String question) {
+        Problem problem = problemRepository.findById(problemId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 문제가 없습니다 - problemId : " + problemId));
 
-        return aiService.query(dto);
+        //content, answer, question
+        AIQueryDto aiQueryDto = new AIQueryDto(problem.getContent(), problem.getAnswer(),question);
+        //isanswer, queryresult, (answer)
+        return aiService.query(aiQueryDto);
     }
 
     public Long makeProblem() {
