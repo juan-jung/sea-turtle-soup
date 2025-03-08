@@ -18,8 +18,8 @@ public class Problem {
 
     @Setter @Column(nullable = false) private String title;
     @Setter @Column(nullable = false) private String content;
-    @Setter @Column(nullable = false) private String answer;
-    @Setter @Column(nullable = false) private String difficulty;
+    @Setter @Column(nullable = false, columnDefinition = "TEXT") private String answer;
+    @Setter @Column(nullable = false, columnDefinition = "TEXT") private String difficulty;
 
     protected Problem() {}
 
