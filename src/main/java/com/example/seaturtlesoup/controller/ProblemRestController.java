@@ -1,5 +1,6 @@
 package com.example.seaturtlesoup.controller;
 
+import com.example.seaturtlesoup.domain.type.DifficultyType;
 import com.example.seaturtlesoup.dto.AIQueryResultDto;
 import com.example.seaturtlesoup.dto.ProblemDto;
 import com.example.seaturtlesoup.dto.req.QueryRequestDto;
@@ -47,8 +48,9 @@ public class ProblemRestController {
     }
 
     @PostMapping("/problems/make")
-    public ResponseEntity<Long> make() {
-        Long problemId = problemService.makeProblem();
+    public ResponseEntity<Long> make(@RequestBody String difficultyType) {
+        String cleanedInput = difficultyType.trim();
+        Long problemId = problemService.makeProblem(DifficultyType.valueOf(cleanedInput));
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

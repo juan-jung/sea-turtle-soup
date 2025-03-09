@@ -45,9 +45,9 @@ public class ProblemService {
         return aiService.query(aiQueryDto);
     }
 
-    public Long makeProblem() {
-        NewProblemDto dto = aiService.make();
-        Problem problem = problemRepository.save(Problem.of(dto.title(), dto.content(), dto.answer(), DifficultyType.EASY));
+    public Long makeProblem(DifficultyType difficultyType) {
+        NewProblemDto dto = aiService.make(difficultyType);
+        Problem problem = problemRepository.save(Problem.of(dto.title(), dto.content(), dto.answer(), difficultyType));
         return problem.getId();
     }
 }
