@@ -10,11 +10,21 @@
 <div class="container">
     <div class="left-section">
         <div class="content-box" id="contentBox">
-            <h2 id="title">문제 제목</h2>
-            <p id="content">문제 내용...</p>
+            <h2 id="title">바다거북이 스프 게임</h2>
+            <div id="gameInstructions">
+                <p>🎲 바다거북이 스프 게임에 오신 것을 환영합니다! 🎲</p>
+                <p>저는 게임 진행자 거북이입니다.</p>
+                <p>이 게임은 제가 제시한 기묘한 상황을 듣고, 여러분이 예/아니오 질문을 통해 숨겨진 정답을 맞히는 퍼즐입니다.</p>
+                <p>저에게 질문을 하기 위해선 "거북아"라고 부르신 후 질의를 하시면 됩니다.</p>
+                <p>질문을 시작하면 "예", "아니요", "힌트" 등의 답변을 드립니다.</p>
+                <p>준비되셨으면 첫 질문을 기다릴게요! 도전해주세요!</p>
+            </div>
+            <div id="problemContent" style="display: none;">
+                <p id="content">문제 내용...</p>
+            </div>
         </div>
         <div class="chat-box" id="chatBox" style="display: none;">
-            <h3>AI와의 대화</h3>
+            <h3>거북이와의 대화</h3>
             <div id="chat-messages"></div>
             <div class="chat-footer">
                 <a href="/"><button id="problemListButton">문제 목록으로 가기</button></a>

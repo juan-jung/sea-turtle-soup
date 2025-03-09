@@ -78,14 +78,29 @@ button:hover {
     background-color: #0056b3;
 }
 
+/*#challengeButton {*/
+/*    position: absolute;*/
+/*    top: 50%;*/
+/*    left: 50%;*/
+/*    transform: translate(-50%, -50%);*/
+/*    z-index: 10;*/
+/*    font-size: 24px;*/
+/*    padding: 15px 30px;*/
+/*}*/
+
 #challengeButton {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
+    /* 절대 위치 제거하고 상대 위치로 변경 */
+    position: relative;
+    /* 전체 너비에 맞추기 */
+    width: 25%;
+    /* 여백 설정 */
+    margin-top: 20px;
     font-size: 24px;
     padding: 15px 30px;
+    /* 중앙 정렬 */
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .dimmed {
@@ -185,4 +200,17 @@ button:hover {
 /* 링크 스타일 제거 */
 .chat-footer a {
     text-decoration: none;
+}
+
+#gameInstructions {
+    text-align: center;
+    line-height: 1.6;
+    padding: 20px;
+    background-color: #222;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+#gameInstructions p {
+    margin-bottom: 10px;
 }

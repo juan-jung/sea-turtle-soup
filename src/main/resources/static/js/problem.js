@@ -15,6 +15,10 @@ let isCapturing = false;
 let capturedText = '';
 let isSpeaking = false;
 let lastProcessedText = ''; // 마지막으로, 처리된 텍스트를 저장
+let captureTimeout = null; // 캡처 타임아웃 추가
+
+// 트리거 단어 배열
+const TRIGGER_WORDS = ['거북아', '거부가'];
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -60,7 +64,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 음성 인식 초기화
     setupSpeechRecognition();
+
+    // 음성 캡처 표시기 요소 생성 및 추가
+    createCaptureIndicator();
 });
+
+// 음성 캡처 표시기 요소 생성
+function createCaptureIndicator() {
+    const captureIndicator = document.createElement('div');
+    captureIndicator.id = 'captureIndicator';
+    captureIndicator.className = 'capture-indicator';
+    captureIndicator.innerHTML = `
+        <div class="indicator-icon">🎤</div>
+        <div class="indicator-text">대기 중...</div>
+        <div class="live-text" id="liveText"></div>
+    `;
+    captureIndicator.style.display = 'none';
+
+    document.body.appendChild(captureIndicator);
+
+    // 스타일 적용
+    const style = document.createElement('style');
+    style.textContent = `
+        .capture-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        .indicator-icon {
+            margin-right: 8px;
+            font-size: 1.2em;
+            animation: pulse 1.5s infinite;
+        }
+        .indicator-text {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .live-text {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-style: italic;
+            color: #aaf;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .capturing {
+            background-color: rgba(0, 128, 0, 0.7);
+        }
+        
+        /* 타이핑 효과 관련 스타일 */
+        .typing-effect {
+            border-right: 2px solid #333;
+            white-space: pre-wrap;
+            overflow: hidden;
+            width: fit-content;
+            animation: typing-cursor 0.7s infinite;
+        }
+        @keyframes typing-cursor {
+            0% { border-right-color: #333; }
+            50% { border-right-color: transparent; }
+            100% { border-right-color: #333; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// 음성 캡처 표시기 업데이트
+function updateCaptureIndicator(state, text = '') {
+    const indicator = document.getElementById('captureIndicator');
+    const liveText = document.getElementById('liveText');
+    const indicatorText = indicator.querySelector('.indicator-text');
+
+    if (!indicator || !liveText) return;
+
+    switch (state) {
+        case 'waiting':
+            indicator.style.display = 'flex';
+            indicator.classList.remove('capturing');
+            indicatorText.textContent = '대기 중...';
+            liveText.textContent = '"거북아"라고 불러보세요';
+            break;
+        case 'listening':
+            indicator.style.display = 'flex';
+            indicator.classList.add('capturing');
+            indicatorText.textContent = '듣는 중:';
+            liveText.textContent = text;
+            break;
+        case 'processing':
+            indicator.style.display = 'flex';
+            indicator.classList.add('capturing');
+            indicatorText.textContent = '처리 중...';
+            liveText.textContent = '';
+            break;
+        case 'speaking':
+            indicator.style.display = 'flex';
+            indicator.classList.remove('capturing');
+            indicatorText.textContent = '응답 중...';
+            liveText.textContent = '';
+            break;
+        case 'hidden':
+            indicator.style.display = 'none';
+            break;
+        default:
+            break;
+    }
+}
 
 // 마이크 권한 확인 함수
 async function checkMicrophonePermission() {
@@ -89,11 +211,11 @@ function loadInitialData() {
         })
         .then(problem => {
             const title = document.getElementById('title');
-            const content = document.getElementById('content');
-            if (title && content) {
-                title.textContent = problem.title;
-                content.textContent = problem.content;
+            // 초기에는 문제 내용을 로드하지 않고 제목만 설정
+            if (title) {
+                title.textContent = "바다거북이 스프 게임";
             }
+            // 문제 내용은 loadProblemContent 함수에서 도전 버튼 클릭 시 로드됨
         })
         .catch(error => {
             console.error('데이터 로드 실패:', error);
@@ -134,39 +256,76 @@ function startChallenge() {
     const challengeButton = document.getElementById('challengeButton');
     const dimmed = document.querySelector('.dimmed');
     const chatBox = document.getElementById('chatBox');
+    const gameInstructions = document.getElementById('gameInstructions');
+    const problemContent = document.getElementById('problemContent');
 
     if (!challengeButton) {
         console.error('challengeButton 요소를 찾을 수 없습니다.');
         return;
     }
+    else challengeButton.style.display = 'none'
 
-    if (challengeButton) challengeButton.style.display = 'none';
+    // 게임 설명을 숨기고 문제 내용을 표시
+    if (gameInstructions) gameInstructions.style.display = 'none';
+    if (problemContent) problemContent.style.display = 'block';
+
     if (dimmed) dimmed.style.display = 'none';
     if (chatBox) chatBox.style.display = 'block';
 
-    const content = document.getElementById('content');
-    if (content && content.textContent) {
-        // 음성 출력 상태로 설정 (음성 인식 일시 중지)
-        isSpeaking = true;
-        pauseSpeechRecognition();
+    // 현재 문제 로드 후 음성 출력
+    loadProblemContentAndSpeak();
 
-        // 먼저 문제 내용을 음성으로 출력 (TTS)
-        speakText(content.textContent)
-            .then(() => {
-                // 음성 출력이 끝난 후 음성 인식 시작
-                isSpeaking = false;
-                startSpeechRecognition();
-            })
-            .catch(error => {
-                console.error('음성 출력 실패:', error);
-                // 음성 출력 실패해도 음성 인식은 시작
-                isSpeaking = false;
-                startSpeechRecognition();
-            });
-    } else {
-        // 콘텐츠가 없으면 바로 음성 인식 시작
-        startSpeechRecognition();
-    }
+    // 캡처 표시기 표시
+    updateCaptureIndicator('waiting');
+}
+
+// 문제 내용 로드 후 음성 출력하는 함수
+function loadProblemContentAndSpeak() {
+    if (!problemId) return;
+
+    fetch(`${API_BASE_URL}/api/problems/${problemId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('문제를 찾을 수 없습니다');
+            return response.json();
+        })
+        .then(problem => {
+            const content = document.getElementById('content');
+            if (content) {
+                content.textContent = problem.content;
+
+                // 문제 내용이 업데이트된 후 음성 출력 시작
+                // 음성 출력 상태로 설정 (음성 인식 일시 중지)
+                isSpeaking = true;
+                pauseSpeechRecognition();
+
+                // 음성 출력 중임을 표시
+                updateCaptureIndicator('speaking');
+
+                // 업데이트된 문제 내용을 음성으로 출력 (TTS)
+                speakText(problem.content)
+                    .then(() => {
+                        // 음성 출력이 끝난 후 음성 인식 시작
+                        isSpeaking = false;
+                        startSpeechRecognition();
+                        updateCaptureIndicator('waiting');
+                    })
+                    .catch(error => {
+                        console.error('음성 출력 실패:', error);
+                        // 음성 출력 실패해도 음성 인식은 시작
+                        isSpeaking = false;
+                        startSpeechRecognition();
+                        updateCaptureIndicator('waiting');
+                    });
+            }
+        })
+        .catch(error => {
+            console.error('문제 데이터 로드 실패:', error);
+            showErrorMessage('문제 데이터를 불러오는 중 오류가 발생했습니다.');
+            // 오류 발생 시에도 음성 인식은 시작
+            isSpeaking = false;
+            startSpeechRecognition();
+            updateCaptureIndicator('waiting');
+        });
 }
 
 // 음성 인식 설정
@@ -185,6 +344,8 @@ function setupSpeechRecognition() {
                 console.error('음성 인식 오류:', event.error);
                 isCapturing = false;
                 capturedText = '';
+
+                updateCaptureIndicator('waiting');
 
                 if (event.error === 'not-allowed') {
                     showErrorMessage('마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
@@ -232,10 +393,44 @@ function handleSpeechResult(event) {
     if (isSpeaking) return;
 
     let transcript = '';
-    // 현재 결과만 처리 (중복 방지)
+    let interimTranscript = '';
+
+    // 현재 결과 처리 (중복 방지)
     for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript;
+        const result = event.results[i];
+        if (result.isFinal) {
+            transcript += result[0].transcript;
+        } else {
+            interimTranscript += result[0].transcript;
+        }
+    }
+
+    // 디버깅용 상태 로깅 추가
+    console.log('Recognition active:', isRecognitionActive);
+    console.log('Is capturing:', isCapturing);
+    console.log('Is speaking:', isSpeaking);
+    console.log('Current captured text:', capturedText);
+    console.log('Last processed text:', lastProcessedText);
+
+    // 실시간 텍스트 표시 (임시 결과 포함)
+    if (interimTranscript.trim()) {
+        console.log('임시 인식 텍스트:', interimTranscript);
+
+        // 트리거 단어 감지 (임시 텍스트에서)
+        const lowerInterim = interimTranscript.toLowerCase();
+        let triggered = false;
+
+        // 여러 트리거 단어 확인
+        for (const word of TRIGGER_WORDS) {
+            if (lowerInterim.includes(word)) {
+                triggered = true;
+                break;
+            }
+        }
+
+        if (triggered || isCapturing) {
+            // 트리거 단어 감지되면 임시 텍스트를 표시기에 표시
+            updateCaptureIndicator('listening', interimTranscript);
         }
     }
 
@@ -245,48 +440,113 @@ function handleSpeechResult(event) {
     console.log('인식된 텍스트:', transcript);
 
     // 중복 방지: 마지막으로 처리된 텍스트와 동일하면 무시
-    if (transcript === lastProcessedText) {
+    // 동일한 텍스트가 두 번 연속으로 인식되는 경우에만 중복 처리
+    if (transcript === lastProcessedText && !isCapturing) {
         console.log('중복 텍스트 감지, 무시합니다:', transcript);
         return;
     }
 
-    // "거북아" 키워드 감지
-    if (transcript.toLowerCase().includes('거부가') && !isCapturing) {
+    // 트리거 단어 감지
+    const lowerTranscript = transcript.toLowerCase();
+    let triggered = false;
+    let triggerWord = '';
+
+    // 여러 트리거 단어 확인
+    for (const word of TRIGGER_WORDS) {
+        if (lowerTranscript.includes(word)) {
+            triggered = true;
+            triggerWord = word;
+            break;
+        }
+    }
+
+    if (triggered && !isCapturing) {
+        // 기존 타임아웃 제거
+        if (captureTimeout) {
+            clearTimeout(captureTimeout);
+            captureTimeout = null;
+        }
+
         isCapturing = true;
-        const parts = transcript.toLowerCase().split('거부가');
+        const parts = lowerTranscript.split(triggerWord);
         capturedText = parts[parts.length - 1].trim();
         if (status) status.textContent = '상태: 음성 캡처 중...';
 
+        // 캡처 중 표시 업데이트
+        updateCaptureIndicator('listening', capturedText);
+
         // 처리된 텍스트 기록
         lastProcessedText = transcript;
+
+        console.log(`트리거 단어 "${triggerWord}" 감지됨, 캡처 시작:`, capturedText);
+
+        // 캡처 타임아웃 설정 (3초 후 자동 처리)
+        captureTimeout = setTimeout(() => {
+            if (isCapturing && capturedText.trim().length > 0) {
+                console.log('타임아웃: 캡처된 텍스트 처리:', capturedText);
+                processCapcapturedText();
+            }
+        }, 3000);
     } else if (isCapturing) {
+        // 기존 타임아웃 갱신
+        if (captureTimeout) {
+            clearTimeout(captureTimeout);
+        }
+
         capturedText += ' ' + transcript;
         // 처리된 텍스트 기록
         lastProcessedText = transcript;
+
+        // 캡처 중 표시 업데이트
+        updateCaptureIndicator('listening', capturedText);
+
+        // 캡처 타임아웃 재설정 (사용자가 말을 멈춘 후 3초 후 자동 처리)
+        captureTimeout = setTimeout(() => {
+            if (isCapturing && capturedText.trim().length > 0) {
+                console.log('타임아웃: 캡처된 텍스트 처리:', capturedText);
+                processCapcapturedText();
+            }
+        }, 3000);
     }
 
     // 음성 종료 감지 (마지막 결과가 확정된 경우)
     const lastResult = event.results[event.results.length - 1];
     if (lastResult.isFinal && isCapturing) {
-        if (capturedText.trim().length > 0) {
-            const finalText = capturedText.trim();
-            console.log('캡처된 최종 텍스트:', finalText);
+        console.log('최종 결과 감지됨, isFinal:', lastResult.isFinal);
 
-            // 메시지 추가 및 서버로 전송
-            addMessage('user', 'You: ' + finalText);
-
-            // 음성 인식 일시 중지 (AI 응답 기다리는 동안)
-            pauseSpeechRecognition();
-
-            // 서버로 전송
-            sendMessageToAI(finalText);
+        // 타임아웃 취소 (최종 결과가 감지되었으므로)
+        if (captureTimeout) {
+            clearTimeout(captureTimeout);
+            captureTimeout = null;
         }
 
-        // 캡처 상태 초기화
-        isCapturing = false;
-        capturedText = '';
-        if (status) status.textContent = '상태: 대기 중... ("거북아"를 말하세요)';
+        if (capturedText.trim().length > 0) {
+            processCapcapturedText();
+        }
     }
+}
+
+// 캡처된 텍스트 처리 함수 (코드 중복 방지)
+function processCapcapturedText() {
+    const finalText = capturedText.trim();
+    console.log('캡처된 최종 텍스트 처리:', finalText);
+
+    // 처리중 상태로 표시 업데이트
+    updateCaptureIndicator('processing');
+
+    // 메시지 추가 및 서버로 전송
+    addMessage('user', 'You: ' + finalText);
+
+    // 음성 인식 일시 중지 (AI 응답 기다리는 동안)
+    pauseSpeechRecognition();
+
+    // 서버로 전송
+    sendMessageToAI(finalText);
+
+    // 캡처 상태 초기화
+    isCapturing = false;
+    capturedText = '';
+    if (status) status.textContent = '상태: 대기 중... ("거북아" 또는 "거부가"를 말하세요)';
 }
 
 // 음성 인식 시작 함수
@@ -316,7 +576,10 @@ function startSpeechRecognition() {
         recognition.start();
         isRecognitionActive = true;
         console.log('음성 인식 시작...');
-        if (status) status.textContent = '상태: 음성 인식 중... ("거북아"를 말하세요)';
+        if (status) status.textContent = '상태: 음성 인식 중... ("거북아" 또는 "거부가"를 말하세요)';
+
+        // 대기 상태로 표시 업데이트
+        updateCaptureIndicator('waiting');
     } catch (e) {
         console.error('음성 인식 시작 실패:', e);
 
@@ -329,7 +592,10 @@ function startSpeechRecognition() {
                         recognition.start();
                         isRecognitionActive = true;
                         console.log('음성 인식 재시작...');
-                        if (status) status.textContent = '상태: 음성 인식 중... ("거북아"를 말하세요)';
+                        if (status) status.textContent = '상태: 음성 인식 중... ("거북아" 또는 "거부가"를 말하세요)';
+
+                        // 대기 상태로 표시 업데이트
+                        updateCaptureIndicator('waiting');
                     }
                 }, 500);
             } catch (err) {
@@ -356,6 +622,28 @@ function pauseSpeechRecognition() {
     }
 }
 
+// 타이핑 효과 함수
+function typeText(element, text, speed = 30) {
+    return new Promise((resolve) => {
+        let index = 0;
+        element.classList.add('typing-effect');
+        element.textContent = '';
+
+        function type() {
+            if (index < text.length) {
+                element.textContent += text.charAt(index);
+                index++;
+                setTimeout(type, speed);
+            } else {
+                element.classList.remove('typing-effect');
+                resolve();
+            }
+        }
+
+        type();
+    });
+}
+
 // AI에 메시지 전송
 async function sendMessageToAI(message) {
     const chatMessages = document.getElementById('chat-messages');
@@ -374,7 +662,15 @@ async function sendMessageToAI(message) {
         const data = await response.json();
 
         const aiMessage = data.isAnswer ? data.answer : data.queryResult;
-        addMessage('ai', `AI: ${aiMessage}`);
+
+        // 응답 중임을 표시
+        updateCaptureIndicator('speaking');
+
+        // 빈 메시지 요소 생성 (타이핑 효과를 위해)
+        const messageElement = addMessage('ai', '', true);
+
+        // 타이핑 효과로 메시지 표시
+        await typeText(messageElement, `AI: ${aiMessage}`, 30);
 
         // 음성 출력 상태로 설정 (말하는 동안 음성 인식 중지)
         isSpeaking = true;
@@ -385,10 +681,17 @@ async function sendMessageToAI(message) {
         // 음성 출력 후 다시 음성 인식 시작
         isSpeaking = false;
         startSpeechRecognition();
+
+        // 대기 상태로 업데이트
+        updateCaptureIndicator('waiting');
     } catch (error) {
         console.error('AI 대화 실패:', error);
-        const errorMessage = 'AI: 오류가 발생했습니다. 다시 시도해주세요.';
-        addMessage('ai', errorMessage);
+
+        // 빈 메시지 요소 생성
+        const messageElement = addMessage('ai', '', true);
+
+        // 타이핑 효과로 오류 메시지 표시
+        await typeText(messageElement, 'AI: 오류가 발생했습니다. 다시 시도해주세요.', 30);
 
         // 오류 메시지도 음성으로 출력
         isSpeaking = true;
@@ -397,19 +700,28 @@ async function sendMessageToAI(message) {
         // 음성 출력 후 다시 음성 인식 시작
         isSpeaking = false;
         startSpeechRecognition();
+
+        // 대기 상태로 업데이트
+        updateCaptureIndicator('waiting');
     }
 }
 
-// 메시지 추가
-function addMessage(type, text) {
+// 메시지 추가 (타이핑 효과를 위해 수정)
+function addMessage(type, text, emptyForTyping = false) {
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
 
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
-    messageDiv.textContent = text;
+
+    if (!emptyForTyping) {
+        messageDiv.textContent = text;
+    }
+
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    return messageDiv;
 }
 
 // 음성 출력 함수 (Promise 반환)
@@ -441,12 +753,14 @@ function speakText(text) {
         utterance.onstart = () => {
             console.log('음성 출력 시작됨');
             isSpeaking = true; // 음성 출력 중 플래그 설정
+            updateCaptureIndicator('speaking');
         };
 
         utterance.onend = () => {
             console.log('음성 출력 완료');
             isSpeaking = false; // 음성 출력 완료 플래그 해제
-            if (status) status.textContent = '상태: 대기 중... ("거북아"를 말하세요)';
+            if (status) status.textContent = '상태: 대기 중... ("거북아" 또는 "거부가"를 말하세요)';
+            updateCaptureIndicator('waiting');
             resolve();
         };
 
@@ -454,6 +768,7 @@ function speakText(text) {
             console.error('음성 출력 오류:', event.error);
             isSpeaking = false; // 오류 발생해도 플래그 해제
             if (status) status.textContent = `상태: 출력 오류 - ${event.error}`;
+            updateCaptureIndicator('waiting');
             reject(new Error(`음성 출력 오류: ${event.error}`));
         };
 
@@ -486,6 +801,8 @@ function showErrorMessage(message) {
     // 오류가 있을 경우 상태 업데이트
     if (status) status.textContent = `상태: ${message}`;
 }
+
+
 
 // 모든 음성 기능 중지 함수
 function stopAllSpeechFeatures() {
