@@ -26,3 +26,10 @@ spring:
       hibernate.format_sql: true
       hibernate.default_batch_fetch_size: 100
   sql.init.mode: always
+
+openai:
+  api:
+    url: https://api.openai.com/v1/chat/completions
+    key: ${api_key}
+  model:
+    name: gpt-4o
