@@ -43,7 +43,7 @@ public class ProblemRestController {
         QueryResponseDto queryResult = new QueryResponseDto(
                 aiQueryResultDto.isAnswer(),
                 aiQueryResultDto.queryResult(),
-                aiQueryResultDto.isAnswer()?aiQueryResultDto.answer() : null);
+                aiQueryResultDto.isAnswer() ? aiQueryResultDto.answer() : null);
         return ResponseEntity.ok(queryResult);
     }
 
